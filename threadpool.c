@@ -32,3 +32,26 @@ struct ThreadPool
 
     int shutdown;               // if the threadpool is to be destroyed, 1 for destroy, 0 for not destroy
 }
+
+ThreadPool* threadpoolCreate(int min, int max, int queueSize)
+{   
+    ThreadPool* pool = (ThreadPool*)malloc(sizeof(ThreadPool));
+    if (pool == NULL)
+    {
+        printf("malloc threadpoll failed...\n");
+        return NULL;
+    }
+
+    pool->threadIDs = (pthread_t*)malloc(sizeof(pthread_t) * max);
+    if (pool->threadIDs == NULL)
+    {
+        printf("malloc threadIDs failed...\n");
+        return NULL;
+    }
+    memset(poll->threadIDs, 0, sizeof(pthred_t) * max);
+
+    poll->minNum = min;
+    poll->maxNum = max;
+    poll->busyNum = 0;
+    poll->liveNum = min;
+}

@@ -1,8 +1,9 @@
 #ifndef _THREADPOOL_H
 #define _THREADPOOL_H
 
+typedef struct ThreadPool ThreadPoll;
 // create threadpool and initiate
-
+ThreadPool *threadPoolCreate(int min, int max, int queueSize);
 
 // destroy threadpool
 
