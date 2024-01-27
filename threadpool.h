@@ -13,4 +13,7 @@ ThreadPool *threadPoolCreate(int min, int max, int queueSize);
 
 // get the number of alive thread
 
+//////////
+void* worker(void* arg);
+
 #endif // _THREADPOOL_H

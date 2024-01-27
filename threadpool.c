@@ -33,7 +33,7 @@ struct ThreadPool
     int shutdown; // if the threadpool is to be destroyed, 1 for destroy, 0 for not destroy
 };
 
-ThreadPool *threadpoolCreate(int min, int max, int queueSize)
+ThreadPool *threadPoolCreate(int min, int max, int queueSize)
 {
     ThreadPool *pool = (ThreadPool *)malloc(sizeof(ThreadPool));
     do
@@ -68,7 +68,7 @@ ThreadPool *threadpoolCreate(int min, int max, int queueSize)
         }
 
         // Task queue
-        pool->taskQ = malloc(sizeof(Task) * queueSize);
+        pool->taskQ = (Task*)malloc(sizeof(Task) * queueSize);
         pool->queueCapacity = queueSize;
         pool->queueSize = 0;
         pool->queueFront = 0;
@@ -80,15 +80,70 @@ ThreadPool *threadpoolCreate(int min, int max, int queueSize)
         pthread_create(&pool->managerID, NULL, manager, NULL);
         for (int i = 0; i < min; ++i)
         {
-            pthread_create(&pool->threadIDs[i], NULL, worker, NULL);
+            pthread_create(&pool->threadIDs[i], NULL, worker, pool);
         }
 
         return pool;
     } while (0);
 
-    // release resource
+    // release space
     if (pool->threadIDs) free(pool->threadIDs);
     if (pool->taskQ) free(pool->taskQ);
     if (pool) free(pool);
+
+    return NULL;
+}
+
+void* worker(void* arg)
+{
+    ThreadPool* pool = (ThreadPool*) arg;
+
+    while(1)
+    {
+        pthread_mutex_lock(&pool->mutexPool);
+
+        // if the current task queue is empty or the pool is shutdown
+        while (pool->queueSize == 0 && !pool->shutdown)
+        {
+            // block working thread
+            pthread_cond_wait(&pool->notEmpty, &pool->mutexPool);
+        }
+
+        // if the pool is shutdown
+        if (pool->shutdown)
+        {
+            pthread_mutex_unlock(&pool->mutexPool);
+            pthread_exit(NULL);
+        }
+
+        // get a task from task queue
+        Task task;
+        task.function = pool->taskQ[pool->queueFront].function;
+        task.arg = pool->taskQ[pool->queueFront].arg;
+
+        // move the queue front pointer to next task
+        pool->queueFront = (pool->queueFront + 1) % pool->queueCapacity;
+        pool->queueSize--;
+        
+        //unlock the mutex lock
+        pthread_mutex_unlock(&pool->mutexPool);
+
+        printf("thread %ld end working...\n");
+        pthread_mutex_lock(&pool->mutexBusy);
+        pool->busyNum++;
+        pthread_mutex_unlock(&pool->mutexBusy);
+        task.function(task.arg);
+        free(task.arg);
+        task.arg = NULL;
+
+        printf("thread %ld end working...\n");
+        pthread_mutex_lock(&pool->mutexBusy);
+        pool->busyNum--;
+        pthread_mutex_unlock(&pool->mutexBusy);
+
+
+
+    }
+
     return NULL;
 }
