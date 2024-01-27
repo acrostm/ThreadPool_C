@@ -1,6 +1,7 @@
 #include "threadpool.h"
-
 #include <pthread.h>
+
+const int NUMBER = 2;
 
 // Task struct
 typedef struct Task
@@ -105,8 +106,15 @@ void* worker(void* arg)
         // if the current task queue is empty or the pool is shutdown
         while (pool->queueSize == 0 && !pool->shutdown)
         {
-            // block working thread
+            // block working thread ?
             pthread_cond_wait(&pool->notEmpty, &pool->mutexPool);
+            // if the thread need to be destroyed
+            if (pool->exitNum > 0)
+            {
+                pool->exitNum--;
+                pthread_mutex_unlock(&pool->mutexPool);
+                pthread_exit(NULL);
+            }
         }
 
         // if the pool is shutdown
@@ -140,9 +148,61 @@ void* worker(void* arg)
         pthread_mutex_lock(&pool->mutexBusy);
         pool->busyNum--;
         pthread_mutex_unlock(&pool->mutexBusy);
+    }
 
+    return NULL;
+}
 
+void* manager(void* arg)
+{
+    ThreadPool* pool = (ThreadPool*)arg;
+    while (!pool->shutdown)
+    {
+        // test every 3 seconds
+        sleep(3);
 
+        // get number of task and number of thread in the threadpool
+        pthread_mutex_lock(&pool->mutexPool);
+        int queueSize = pool->queueSize;
+        int aliveNum = pool->aliveNum;
+        pthread_mutex_unlock(&pool->mutexPool);
+
+        // get the busy thread number
+        pthread_mutex_lock(&pool->mutexBusy);
+        int busyNum = pool->busyNum;
+        pthread_mutex_unlock(&pool->mutexBusy);
+
+        // add thread
+        // Rule: number of task > number of alive thread && number of alive thread < max thread number
+        if (queueSize > aliveNum && aliveNum < pool->maxNum)
+        {
+            pthread_mutex_lock(&pool->mutexPool);
+            int counter = 0;
+            for (int i = 0; i < pool->maxNum && counter < NUMBER && pool->aliveNum < pool->maxNum; ++i)
+            {
+                if (pool->threadIDs[i] == 0)
+                {
+                    pthread_create(&pool->threadIDs[i], NULL, worker, pool);
+                    counter++;
+                    pool->aliveNum++;
+                }
+            }
+            pthread_mutex_unlock(&pool->mutexPool);
+        }
+
+        // destroy thread
+        // Rule: busy thread*2 < alive thread && alive thread > min thread num
+        if (busyNum * 2 < aliveNum && aliveNum > pool->minNum)
+        {
+            pthread_mutex_lock(&pool->mutexPool);
+            pool->exitNum == NUMBER;
+            pthread_mutex_unlock(&pool->mutexPool);
+            // let free working thread kill itself
+            for (int i = 0; i < NUMBER; ++i)
+            {
+                pthread_cond_signal(&pool->notEmpty);
+            }
+        }
     }
 
     return NULL;
