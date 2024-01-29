@@ -8,7 +8,7 @@ ThreadPool *threadPoolCreate(int min, int max, int queueSize);
 // destroy threadpool
 
 // add task to threadpool
-
+void threadPoolAdd(ThreadPool* pool, void(*func)(void*), void* arg);
 // get the number of working thread
 
 // get the number of alive thread

@@ -95,6 +95,30 @@ ThreadPool *threadPoolCreate(int min, int max, int queueSize)
     return NULL;
 }
 
+void threadPoolAdd(ThreadPool* pool, void(*func)(void*), void* arg)
+{
+    pthread_mutex_lock(&pool->mutexPool);
+    while (pool->queueSize == pool->queueCapacity && !pool->shutdown)
+    {
+        // block producer thread
+        pthread_cond_wait(&pool->notFull, &pool->mutexPool);
+    }
+    if (pool->shutdown)
+    {
+        pthread_mutex_unlock(&pool->mutexPool);
+        return;
+    }
+    // add task
+    pool->taskQ[pool->queueEnd].function = func;
+    pool->taskQ[pool->queueEnd].arg = arg;
+    pool->queueEnd = (pool->queueEnd + 1) % pool->queueCapacity;
+    pool->queueSize++;
+
+    pthread_cond_signal(&pool->notEmpty);
+    pthread_mutex_unlock(&pool->mutexPool);
+
+}
+
 void* worker(void* arg)
 {
     ThreadPool* pool = (ThreadPool*) arg;
@@ -140,6 +164,7 @@ void* worker(void* arg)
         pool->queueSize--;
         
         //unlock the mutex lock
+        pthread_cond_signal(&pool->notFull);
         pthread_mutex_unlock(&pool->mutexPool);
 
         printf("thread %ld end working...\n");
