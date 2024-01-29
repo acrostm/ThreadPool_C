@@ -99,7 +99,7 @@ void* worker(void* arg)
 {
     ThreadPool* pool = (ThreadPool*) arg;
 
-    while(1)
+    while (1)
     {
         pthread_mutex_lock(&pool->mutexPool);
 
@@ -108,12 +108,18 @@ void* worker(void* arg)
         {
             // block working thread ?
             pthread_cond_wait(&pool->notEmpty, &pool->mutexPool);
+
             // if the thread need to be destroyed
             if (pool->exitNum > 0)
             {
                 pool->exitNum--;
-                pthread_mutex_unlock(&pool->mutexPool);
-                pthread_exit(NULL);
+                if (pool->aliveNum > pool->minNum)
+                {
+                    pool->aliveNum--;
+                    pthread_mutex_unlock(&pool->mutexPool);
+                    threadExit(pool);
+                }
+
             }
         }
 
@@ -121,7 +127,7 @@ void* worker(void* arg)
         if (pool->shutdown)
         {
             pthread_mutex_unlock(&pool->mutexPool);
-            pthread_exit(NULL);
+            threadExit(pool);
         }
 
         // get a task from task queue
@@ -206,4 +212,19 @@ void* manager(void* arg)
     }
 
     return NULL;
+}
+
+void threadExit(ThreadPool* pool)
+{
+    pthread_t tid = pthread_self();
+    for (int i = 0; i < pool->maxNum; ++i)
+    {
+        if (pool->threadIDs[i] == tid)
+        {
+            pool->threadIDs[i] = 0;
+            printf("threadExit() called, %ld exiting...\n", tid);
+            break;
+        }
+    }
+    pthread_exit(NULL);
 }
