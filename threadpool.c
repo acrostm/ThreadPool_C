@@ -119,6 +119,65 @@ void threadPoolAdd(ThreadPool* pool, void(*func)(void*), void* arg)
 
 }
 
+int threadPoolBusyNum(ThreadPool* pool)
+{
+    pthread_mutex_lock(&pool->mutexBusy);
+    int busyNum = pool->busyNum;
+    pthread_mutex_unlock(&pool->mutexBusy);
+
+    return busyNum;
+}
+
+int threadPoolAliveNum(ThreadPool* pool)
+{
+    pthread_mutex_lock(&pool->mutexPool);
+    int aliveNum = pool->aliveNum;
+    pthread_mutex_unlock(&pool->mutexPool);
+    
+    return aliveNum;
+}
+
+int threadPoolDestroy(ThreadPool* pool)
+{
+    if (pool == NULL)
+    {
+        return -1;
+    }
+
+    // mark thread pool shutdown
+    pool->shutdown = 1;
+
+    // recycle manager threads
+    pthread_join(pool->managerID, NULL);
+
+    // wake blocked consumer thread
+    for (int i = 0; i < pool->aliveNum; ++i)
+    {
+        pthread_cond_signal(&pool->notEmpty);
+    }
+
+    // free heap memory
+    if (pool->taskQ)
+    {
+        free(pool->taskQ);
+    }
+    
+    if (pool->threadIDs)
+    {
+        free(pool->threadIDs);
+    }
+
+    pthread_mutex_destroy(&pool->mutexBusy);
+    pthread_mutex_destroy(&pool->mutexPool);
+    pthread_cond_destroy(&pool->notEmpty);
+    pthread_cond_destroy(&pool->notFull);
+
+    free(pool);
+    pool = NULL;
+
+    return 0;
+}
+
 void* worker(void* arg)
 {
     ThreadPool* pool = (ThreadPool*) arg;
