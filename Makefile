@@ -1,27 +1,21 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -pedantic -std=c11 -pthread
+CFLAGS = -std=c11 -pthread
 DEBUG_FLAGS = -g
 
 SRC = threadpool.c main.c
-OBJ = $(SRC:.c=.o)
+OBJ = $(SRC:.c=.c)
 EXECUTABLE = my_threadpool
 
-# 默认编译规则
+# default compile rule
 all: $(EXECUTABLE)
 
-$(EXECUTABLE): $(OBJ)
+$(EXECUTABLE): $(SRC)
 	$(CC) $(CFLAGS) -o $@ $^
 
-# 调试编译规则
+# debug compile rule
 debug: CFLAGS += $(DEBUG_FLAGS)
 debug: clean all
 
-# 清理规则
+# clean rule
 clean:
-	rm -f $(OBJ) $(EXECUTABLE)
-
-# 隐含规则，用于生成 .o 文件
-%.o: %.c
-	$(CC) $(CFLAGS) -c $<
-
-.PHONY: all debug clean
+	rm -f $(EXECUTABLE)
