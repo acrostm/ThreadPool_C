@@ -1,5 +1,9 @@
 #include "threadpool.h"
 #include <pthread.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 
 const int NUMBER = 2;
 
@@ -78,7 +82,7 @@ ThreadPool *threadPoolCreate(int min, int max, int queueSize)
         pool->shutdown = 0;
 
         // create thread
-        pthread_create(&pool->managerID, NULL, manager, NULL);
+        pthread_create(&pool->managerID, NULL, manager, pool);
         for (int i = 0; i < min; ++i)
         {
             pthread_create(&pool->threadIDs[i], NULL, worker, pool);
@@ -226,7 +230,7 @@ void* worker(void* arg)
         pthread_cond_signal(&pool->notFull);
         pthread_mutex_unlock(&pool->mutexPool);
 
-        printf("thread %ld end working...\n");
+        printf("thread %ld task end ...\n", pthread_self());
         pthread_mutex_lock(&pool->mutexBusy);
         pool->busyNum++;
         pthread_mutex_unlock(&pool->mutexBusy);
@@ -234,7 +238,7 @@ void* worker(void* arg)
         free(task.arg);
         task.arg = NULL;
 
-        printf("thread %ld end working...\n");
+        printf("thread %ld task end ...\n", pthread_self());
         pthread_mutex_lock(&pool->mutexBusy);
         pool->busyNum--;
         pthread_mutex_unlock(&pool->mutexBusy);
@@ -306,7 +310,7 @@ void threadExit(ThreadPool* pool)
         if (pool->threadIDs[i] == tid)
         {
             pool->threadIDs[i] = 0;
-            printf("threadExit() called, %ld exiting...\n", tid);
+            printf("threadExit() called, %ld exit...\n", tid);
             break;
         }
     }
