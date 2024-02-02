@@ -289,7 +289,7 @@ void* manager(void* arg)
         if (busyNum * 2 < aliveNum && aliveNum > pool->minNum)
         {
             pthread_mutex_lock(&pool->mutexPool);
-            pool->exitNum == NUMBER;
+            pool->exitNum = NUMBER;
             pthread_mutex_unlock(&pool->mutexPool);
             // let free working thread kill itself
             for (int i = 0; i < NUMBER; ++i)
